@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="theme-color" content="#0e0f0d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LandTracker">
+<link rel="manifest" id="pwa-manifest">
+<script>
+// Inject manifest dynamically (no separate file needed)
+const manifest = {
+  name: "LandTracker — KBC",
+  short_name: "LandTracker",
+  description: "Industrial land site pipeline tracker",
+  start_url: ".",
+  display: "standalone",
+  background_color: "#0e0f0d",
+  theme_color: "#0e0f0d",
+  icons: [
+    {
+      src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' fill='%230e0f0d'/><text y='130' x='20' font-size='120' font-family='monospace' fill='%23c8f04a'>L</text></svg>",
+      sizes: "192x192",
+      type: "image/svg+xml"
+    }
+  ]
+};
+const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Land Tracker — Industrial Site Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0e0f0d;
+  --surface: #161714;
+  --surface2: #1e1f1c;
+  --surface3: #272824;
+  --border: #2e2f2b;
+  --border2: #3a3b36;
+  --accent: #c8f04a;
+  --accent2: #a8d038;
+  --text: #f0f0ec;
+  --text2: #a8a89e;
+  --text3: #6a6a62;
+  --red: #ff5f5f;
+  --amber: #f5b942;
+  --teal: #4af0c8;
+  --radius: 10px;
+  --radius-lg: 16px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px; height: 60px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky; top: 0; z-index: 100;
+}
+.nav-logo { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; letter-spacing: 0.05em; color: var(--accent); }
+.nav-logo span { color: var(--text2); font-weight: 400; }
+.nav-tabs { display: flex; gap: 4px; }
+.nav-tab {
+  font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
+  padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer;
+  background: transparent; color: var(--text3); letter-spacing: 0.04em; transition: all .15s;
+}
+.nav-tab:hover { color: var(--text2); background: var(--surface2); }
+.nav-tab.active { background: var(--accent); color: #0e0f0d; }
+
+
+/* ─── PWA INSTALL BANNER ─── */
+.install-banner {
+  display: none; align-items: center; justify-content: space-between;
+  background: #1a2600; border-bottom: 1px solid #3a5000;
+  padding: 12px 24px; gap: 16px; flex-wrap: wrap;
+}
+.install-banner.show { display: flex; }
+.install-banner-left { display: flex; align-items: center; gap: 12px; }
+.install-banner-icon { font-size: 22px; }
+.install-banner-text { font-size: 13px; color: var(--text2); line-height: 1.5; }
+.install-banner-text strong { color: var(--accent); }
+.install-banner-actions { display: flex; gap: 8px; }
+.btn-install {
+  background: var(--accent); color: #0e0f0d; border: none; border-radius: 8px;
+  font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
+  padding: 8px 16px; cursor: pointer; transition: background .15s;
+}
+.btn-install:hover { background: var(--accent2); }
+.btn-install-dismiss {
+  background: transparent; border: 1px solid var(--border2); border-radius: 8px;
+  color: var(--text3); font-family: 'DM Mono', monospace; font-size: 11px;
+  padding: 8px 12px; cursor: pointer; transition: all .15s;
+}
+.btn-install-dismiss:hover { border-color: var(--text3); color: var(--text2); }
+
+.sync-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--text3);
+  transition: background .3s;
+}
+.sync-dot.live { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+
+.nav-right { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); }
+
+.page { display: none; }
+.page.active { display: block; }
+
+/* ─── INTAKE ─── */
+.intake-wrap { max-width: 780px; margin: 0 auto; padding: 48px 24px 80px; }
+.intake-header { margin-bottom: 40px; }
+.intake-header h1 { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+.intake-header p { font-size: 14px; color: var(--text2); line-height: 1.6; }
+.form-section { margin-bottom: 32px; }
+.form-section-title {
+  font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500;
+  color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase;
+  margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+.form-grid.full { grid-template-columns: 1fr; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 11px; font-weight: 500; color: var(--text2); letter-spacing: 0.04em; }
+.field input, .field select, .field textarea {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px;
+  padding: 10px 14px; outline: none; transition: border .15s; -webkit-appearance: none;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+.field textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
+.field select option { background: var(--surface2); }
+.field input::placeholder, .field textarea::placeholder { color: var(--text3); }
+.field input[readonly] { color: var(--accent); cursor: default; }
+.field select { cursor: pointer; }
+.field-hint { font-size: 11px; color: var(--text3); }
+
+.photo-drop {
+  background: var(--surface2); border: 1px dashed var(--border2); border-radius: var(--radius-lg);
+  padding: 32px; text-align: center; cursor: pointer; transition: border .15s, background .15s; position: relative;
+}
+.photo-drop:hover { border-color: var(--accent); background: var(--surface3); }
+.photo-drop-icon { font-size: 28px; margin-bottom: 10px; }
+.photo-drop p { font-size: 13px; color: var(--text2); margin-bottom: 4px; }
+.photo-drop span { font-size: 11px; color: var(--text3); }
+.photo-preview { margin-top: 14px; display: none; }
+.photo-preview img { width: 100%; max-height: 220px; object-fit: cover; border-radius: var(--radius); }
+
+.submit-row { display: flex; align-items: center; gap: 14px; margin-top: 32px; flex-wrap: wrap; }
+.btn-primary {
+  background: var(--accent); color: #0e0f0d; border: none; border-radius: var(--radius);
+  font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px;
+  padding: 12px 28px; cursor: pointer; transition: background .15s, transform .1s; letter-spacing: 0.02em;
+}
+.btn-primary:hover { background: var(--accent2); }
+.btn-primary:active { transform: scale(0.98); }
+.btn-secondary {
+  background: transparent; color: var(--text2); border: 1px solid var(--border2); border-radius: var(--radius);
+  font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 12px 20px; cursor: pointer; transition: all .15s;
+}
+.btn-secondary:hover { border-color: var(--text2); color: var(--text); }
+.toast {
+  display: none; align-items: center; gap: 10px;
+  background: var(--surface3); border: 1px solid var(--accent); border-radius: var(--radius);
+  padding: 10px 16px; font-size: 13px; color: var(--accent); font-family: 'DM Mono', monospace;
+}
+.toast.show { display: flex; }
+
+/* ─── DASHBOARD ─── */
+.dash-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 32px 16px; border-bottom: 1px solid var(--border);
+  background: var(--surface); flex-wrap: wrap; gap: 12px;
+}
+.dash-header h2 { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; }
+.dash-header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.site-count {
+  font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3);
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px;
+}
+.btn-export {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px;
+  color: var(--text2); font-family: 'DM Mono', monospace; font-size: 11px;
+  padding: 6px 14px; cursor: pointer; transition: all .15s; letter-spacing: 0.03em;
+}
+.btn-export:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle {
+  display: flex; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 3px; gap: 2px;
+}
+.view-btn {
+  border: none; border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 12px;
+  font-family: 'DM Mono', monospace; font-weight: 500; background: transparent; color: var(--text3);
+  transition: all .15s; display: flex; align-items: center; gap: 6px;
+}
+.view-btn.active { background: var(--surface3); color: var(--text); border: 1px solid var(--border2); }
+
+/* ─── STATUS TABS ─── */
+.status-tabs {
+  display: flex; align-items: center; gap: 0; padding: 0 32px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  overflow-x: auto; scrollbar-width: none;
+}
+.status-tabs::-webkit-scrollbar { display: none; }
+.status-tab {
+  font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
+  padding: 13px 16px; border: none; background: transparent; color: var(--text3);
+  cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent;
+  transition: all .15s; letter-spacing: 0.03em; margin-bottom: -1px;
+}
+.status-tab:hover { color: var(--text2); }
+.status-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--surface3); border-radius: 99px; font-size: 10px;
+  min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; color: var(--text3);
+}
+.status-tab.active .tab-count { background: #1e2d00; color: var(--accent); }
+
+/* ─── FILTERS ─── */
+.dash-filters {
+  display: flex; align-items: center; gap: 10px; padding: 12px 32px;
+  border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap;
+}
+.filter-select {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text2); font-family: 'DM Mono', monospace; font-size: 11px;
+  padding: 6px 12px; outline: none; cursor: pointer; -webkit-appearance: none;
+}
+.filter-select:focus { border-color: var(--accent); }
+.search-input {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px;
+  padding: 6px 14px; outline: none; flex: 1; min-width: 180px;
+}
+.search-input:focus { border-color: var(--accent); }
+.search-input::placeholder { color: var(--text3); }
+
+/* ─── LIST ─── */
+.list-wrap { padding: 24px 32px; }
+.empty-state { text-align: center; padding: 80px 24px; color: var(--text3); }
+.empty-state .empty-icon { font-size: 40px; margin-bottom: 14px; opacity: .4; }
+.empty-state p { font-size: 14px; line-height: 1.6; }
+.empty-state strong { color: var(--text2); }
+.site-list { display: flex; flex-direction: column; gap: 12px; }
+.site-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  display: grid; grid-template-columns: 140px 1fr auto; overflow: hidden;
+  cursor: pointer; transition: border-color .15s, transform .1s;
+}
+.site-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+.site-card-img {
+  width: 140px; height: 110px; background: var(--surface2);
+  display: flex; align-items: center; justify-content: center; color: var(--text3); font-size: 24px; flex-shrink: 0;
+}
+.site-card-img img { width: 100%; height: 100%; object-fit: cover; }
+.site-card-body { padding: 16px 20px; }
+.site-card-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+.site-name { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 600; flex: 1; }
+.status-pill {
+  font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500;
+  padding: 3px 9px; border-radius: 99px; letter-spacing: 0.04em; white-space: nowrap;
+}
+.status-prospecting { background: #1a2400; color: var(--accent); border: 1px solid #3a5000; }
+.status-active { background: #001a2e; color: #4ab8f0; border: 1px solid #004080; }
+.status-offers-out { background: #1e0a2e; color: #c084fc; border: 1px solid #5b21b6; }
+.status-submitted { background: #1a0f00; color: #fb923c; border: 1px solid #7c2d12; }
+.status-under-loi { background: #2a1a00; color: var(--amber); border: 1px solid #5a3a00; }
+.status-under-contract { background: #002a20; color: var(--teal); border: 1px solid #005040; }
+.status-closed { background: #1e1e1e; color: var(--text3); border: 1px solid var(--border2); }
+.status-dead { background: #2a0000; color: var(--red); border: 1px solid #500000; }
+.site-meta { display: flex; flex-wrap: wrap; gap: 16px; }
+.site-meta-item { font-size: 12px; color: var(--text2); }
+.site-meta-item span { color: var(--text3); font-size: 11px; display: block; margin-bottom: 1px; font-family: 'DM Mono', monospace; }
+.site-card-actions { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; padding: 16px; border-left: 1px solid var(--border); }
+.icon-btn {
+  width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border);
+  background: transparent; color: var(--text2); cursor: pointer; display: flex;
+  align-items: center; justify-content: center; font-size: 14px; transition: all .15s;
+}
+.icon-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--surface2); }
+.icon-btn.delete:hover { border-color: var(--red); color: var(--red); }
+
+/* ─── MAP ─── */
+.map-wrap { position: relative; }
+#map-container { width: 100%; height: calc(100vh - 230px); background: var(--surface2); display: flex; align-items: center; justify-content: center; }
+.map-placeholder { text-align: center; color: var(--text3); }
+.map-placeholder p { font-size: 14px; line-height: 1.7; max-width: 400px; }
+.map-pins-overlay {
+  position: absolute; top: 16px; right: 16px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 14px 16px; min-width: 220px; max-width: 280px;
+  max-height: calc(100vh - 280px); overflow-y: auto;
+}
+.map-pins-title { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); margin-bottom: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+.map-pin-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); cursor: pointer; transition: opacity .15s; }
+.map-pin-item:last-child { border-bottom: none; }
+.map-pin-item:hover { opacity: .75; }
+.map-pin-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.map-pin-label { font-size: 12px; color: var(--text); }
+.map-pin-sub { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; }
+
+
+
+/* ─── MAP LEGEND ─── */
+.map-legend {
+  position: absolute; bottom: 24px; left: 16px; z-index: 1000;
+}
+.map-legend-toggle {
+  background: var(--surface); border: 1px solid var(--border2); border-radius: 8px;
+  color: var(--text2); font-family: 'DM Mono', monospace; font-size: 11px;
+  padding: 7px 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;
+  transition: all .15s; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.map-legend-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.map-legend-panel {
+  display: none; background: var(--surface); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5); min-width: 160px;
+}
+.map-legend-panel.open { display: block; }
+.map-legend-title { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+.map-legend-item { display: flex; align-items: center; gap: 9px; padding: 4px 0; }
+.map-legend-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; border: 2px solid rgba(255,255,255,0.3); }
+.map-legend-label { font-size: 12px; color: var(--text2); }
+
+/* ─── REMINDER BANNER ─── */
+.reminder-banner {
+  display: none; align-items: flex-start; gap: 14px;
+  background: #1e1800; border-bottom: 1px solid #5a3a00;
+  padding: 14px 32px; flex-wrap: wrap;
+}
+.reminder-banner.show { display: flex; }
+.reminder-banner-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.reminder-banner-body { flex: 1; }
+.reminder-banner-title { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; color: var(--amber); margin-bottom: 6px; }
+.reminder-item { font-size: 12px; color: var(--text2); padding: 3px 0; cursor: pointer; }
+.reminder-item:hover { color: var(--accent); }
+.reminder-item span { color: var(--text3); margin-left: 6px; font-family: 'DM Mono', monospace; font-size: 11px; }
+.reminder-dismiss { background: transparent; border: 1px solid #5a3a00; border-radius: 6px; color: var(--text3); font-size: 11px; padding: 4px 10px; cursor: pointer; font-family: 'DM Mono', monospace; white-space: nowrap; margin-top: 2px; }
+.reminder-dismiss:hover { border-color: var(--amber); color: var(--amber); }
+
+/* ─── CALL LOG ─── */
+.call-log-section { margin-top: 20px; }
+.call-log-title { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; }
+.call-log-input-row { display: flex; gap: 8px; margin-bottom: 14px; }
+.call-log-input {
+  flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px;
+  padding: 9px 14px; outline: none; transition: border .15s;
+}
+.call-log-input:focus { border-color: var(--accent); }
+.call-log-input::placeholder { color: var(--text3); }
+.call-log-add {
+  background: var(--accent); color: #0e0f0d; border: none; border-radius: var(--radius);
+  font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
+  padding: 9px 16px; cursor: pointer; white-space: nowrap; transition: background .15s;
+}
+.call-log-add:hover { background: var(--accent2); }
+.call-log-empty { font-size: 13px; color: var(--text3); padding: 12px 0; }
+.log-entry { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.log-entry:last-child { border-bottom: none; }
+.log-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 5px; }
+.log-body { flex: 1; }
+.log-text { font-size: 13px; color: var(--text); line-height: 1.5; margin-bottom: 3px; }
+.log-meta { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; }
+.log-delete { background: transparent; border: none; color: var(--text3); cursor: pointer; font-size: 12px; padding: 2px 6px; border-radius: 4px; }
+.log-delete:hover { color: var(--red); }
+
+/* ─── REMINDER IN MODAL ─── */
+.reminder-section { margin-top: 20px; background: var(--surface2); border-radius: var(--radius); padding: 14px 16px; }
+.reminder-section-title { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; }
+.reminder-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.reminder-date-input {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px;
+  padding: 8px 12px; outline: none; transition: border .15s;
+}
+.reminder-date-input:focus { border-color: var(--accent); }
+.reminder-freq {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text2); font-family: 'DM Mono', monospace; font-size: 11px;
+  padding: 8px 12px; outline: none; cursor: pointer; -webkit-appearance: none;
+}
+.reminder-save {
+  background: var(--accent); color: #0e0f0d; border: none; border-radius: 8px;
+  font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
+  padding: 8px 14px; cursor: pointer; transition: background .15s;
+}
+.reminder-save:hover { background: var(--accent2); }
+.reminder-clear { background: transparent; border: 1px solid var(--border2); border-radius: 8px; color: var(--text3); font-size: 11px; padding: 8px 12px; cursor: pointer; font-family: 'DM Mono', monospace; }
+.reminder-clear:hover { border-color: var(--red); color: var(--red); }
+.reminder-current { font-size: 12px; color: var(--amber); font-family: 'DM Mono', monospace; margin-top: 8px; }
+
+/* ─── MODAL ─── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 200; align-items: center; justify-content: center; padding: 24px; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius-lg); width: 100%; max-width: 680px; max-height: 90vh; overflow-y: auto; }
+.modal-img { width: 100%; height: 220px; overflow: hidden; background: var(--surface2); display: flex; align-items: center; justify-content: center; color: var(--text3); font-size: 36px; }
+.modal-img img { width: 100%; height: 100%; object-fit: cover; }
+.modal-body { padding: 24px 28px 32px; }
+.modal-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 12px; }
+.modal-name { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; }
+.modal-close { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text2); font-size: 18px; width: 34px; height: 34px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.modal-close:hover { border-color: var(--text2); color: var(--text); }
+.modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.modal-field label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); display: block; margin-bottom: 4px; letter-spacing: 0.06em; text-transform: uppercase; }
+.modal-field p { font-size: 14px; color: var(--text); }
+.modal-notes { background: var(--surface2); border-radius: var(--radius); padding: 14px 16px; }
+.modal-notes label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); display: block; margin-bottom: 6px; letter-spacing: 0.06em; text-transform: uppercase; }
+.modal-notes p { font-size: 13px; color: var(--text2); line-height: 1.7; white-space: pre-wrap; }
+.modal-map-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 16px; background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius); padding: 9px 16px; font-size: 13px; color: var(--text2); text-decoration: none; transition: all .15s; }
+.modal-map-link:hover { border-color: var(--accent); color: var(--accent); }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 99px; }
+
+/* ─── ATTACHMENTS ─── */
+.attachments-section { margin-top: 20px; }
+.attachments-title { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; }
+.attachments-drop {
+  background: var(--surface2); border: 1px dashed var(--border2); border-radius: var(--radius);
+  padding: 20px; text-align: center; cursor: pointer; transition: border .15s, background .15s;
+}
+.attachments-drop:hover { border-color: var(--accent); background: var(--surface3); }
+.attachments-drop p { font-size: 13px; color: var(--text3); margin-top: 6px; }
+.attachments-drop span { font-size: 11px; color: var(--text3); opacity: .6; }
+.attachments-list { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.attachment-item {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 14px;
+}
+.attachment-icon { font-size: 18px; flex-shrink: 0; }
+.attachment-info { flex: 1; min-width: 0; }
+.attachment-name { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.attachment-size { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; margin-top: 2px; }
+.attachment-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.attachment-btn {
+  background: transparent; border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text3); font-size: 11px; padding: 4px 10px; cursor: pointer; font-family: 'DM Mono', monospace;
+  transition: all .15s;
+}
+.attachment-btn:hover { border-color: var(--accent); color: var(--accent); }
+.attachment-btn.del:hover { border-color: var(--red); color: var(--red); }
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyD1w3Jj69wYQjEJKJ8u-TVbTQbnJTCnpGo",
+    authDomain: "landtracker-kbc-92378.firebaseapp.com",
+    projectId: "landtracker-kbc-92378",
+    storageBucket: "landtracker-kbc-92378.firebasestorage.app",
+    messagingSenderId: "564389466378",
+    appId: "1:564389466378:web:c7cb6861c85818e3e7eaf3"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const sitesCol = collection(db, 'sites');
+
+  // Expose db functions to global scope
+  window._db = db;
+  window._sitesCol = sitesCol;
+  window._fsSetDoc = setDoc;
+  window._fsDoc = doc;
+  window._fsDeleteDoc = deleteDoc;
+
+  // Real-time listener — syncs all devices live
+  onSnapshot(sitesCol, (snapshot) => {
+    window.sites = [];
+    snapshot.forEach(d => window.sites.push(d.data()));
+    window.sites.sort((a,b) => b.id - a.id);
+    if (window._appReady) {
+      window.updateCount();
+      window.renderList();
+      window.checkReminders();
+      if (window.currentView === 'map') window.renderMap();
+    }
+  });
+
+  window._appReady = false;
+  // Small delay to let snapshot fire before marking ready
+  setTimeout(() => { window._appReady = true; }, 1200);
+</script>
+</head>
+<body>
+
+<!-- PASSWORD GATE -->
+<div id="password-gate" style="
+  position:fixed;inset:0;background:#0e0f0d;z-index:9999;
+  display:flex;align-items:center;justify-content:center;padding:24px;
+">
+  <div style="width:100%;max-width:380px;text-align:center;">
+    <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:#c8f04a;letter-spacing:0.05em;margin-bottom:6px;">LAND<span style="color:#a8a89e;font-weight:400;">TRACKER</span></div>
+    <div style="font-family:'DM Mono',monospace;font-size:11px;color:#6a6a62;letter-spacing:0.08em;margin-bottom:36px;">KBC INDUSTRIAL PIPELINE</div>
+    <input id="pw-input" type="password" placeholder="Enter passphrase" style="
+      width:100%;background:#1e1f1c;border:1px solid #2e2f2b;border-radius:10px;
+      color:#f0f0ec;font-family:'DM Sans',sans-serif;font-size:15px;
+      padding:14px 18px;outline:none;text-align:center;letter-spacing:0.1em;
+      transition:border .15s;box-sizing:border-box;
+    " onkeydown="if(event.key==='Enter')checkPassword()">
+    <div id="pw-error" style="font-size:12px;color:#ff5f5f;font-family:'DM Mono',monospace;margin-top:10px;min-height:18px;"></div>
+    <button onclick="checkPassword()" style="
+      margin-top:12px;width:100%;background:#c8f04a;color:#0e0f0d;border:none;
+      border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:14px;
+      padding:14px;cursor:pointer;transition:background .15s;letter-spacing:0.02em;
+    " onmouseover="this.style.background='#a8d038'" onmouseout="this.style.background='#c8f04a'">
+      Enter Pipeline →
+    </button>
+  </div>
+</div>
+
+<script>
+function checkPassword() {
+  const input = document.getElementById('pw-input').value;
+  if (input === 'KBC2026$') {
+    document.getElementById('password-gate').style.display = 'none';
+    sessionStorage.setItem('kbc-auth', '1');
+  } else {
+    document.getElementById('pw-error').textContent = 'Incorrect passphrase. Try again.';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+  }
+}
+// Auto-unlock if already authenticated this session
+if (sessionStorage.getItem('kbc-auth') === '1') {
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('password-gate').style.display = 'none';
+  });
+}
+// Focus input on load
+document.addEventListener('DOMContentLoaded', () => {
+  if (sessionStorage.getItem('kbc-auth') !== '1') {
+    document.getElementById('pw-input').focus();
+  }
+});
+</script>
+
+<!-- PWA INSTALL BANNER -->
+<div class="install-banner" id="install-banner">
+  <div class="install-banner-left">
+    <div class="install-banner-icon">📲</div>
+    <div class="install-banner-text"><strong>Install LandTracker as an app</strong><br>Add to your home screen for quick access on any device.</div>
+  </div>
+  <div class="install-banner-actions">
+    <button class="btn-install" id="btn-install-pwa">Install App</button>
+    <button class="btn-install-dismiss" onclick="dismissInstall()">Not now</button>
+  </div>
+</div>
+
+<nav>
+  <div class="nav-logo">LAND<span>TRACKER</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="goTo('intake', this)">+ Add Site</button>
+    <button class="nav-tab" onclick="goTo('dashboard', this)">Pipeline</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;"><div class="sync-dot" id="sync-dot" title="Syncing..."></div><div class="nav-right" id="nav-count">0 sites tracked</div></div>
+</nav>
+
+<!-- ═══ INTAKE PAGE ═══ -->
+<div id="page-intake" class="page active">
+<div class="intake-wrap">
+  <div class="intake-header">
+    <h1>Add a New Site</h1>
+    <p>Log a land site or industrial parcel to your pipeline. Fill in what you know — you can always update later.</p>
+  </div>
+  <form id="site-form" onsubmit="submitSite(event)">
+
+    <div class="form-section">
+      <div class="form-section-title">Site Identity</div>
+      <div class="form-grid full" style="margin-bottom:16px">
+        <div class="field"><label>Site Name / Nickname *</label><input type="text" id="f-name" placeholder="e.g. Rt 30 Berks County Parcel" required></div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Street Address</label><input type="text" id="f-address" placeholder="123 Industrial Blvd"></div>
+        <div class="field"><label>Municipality / Township</label><input type="text" id="f-municipality" placeholder="e.g. Exeter Township"></div>
+      </div>
+      <div class="form-grid three" style="margin-top:16px">
+        <div class="field"><label>State *</label>
+          <select id="f-state"><option value="">Select state</option><option>PA</option><option>NJ</option><option>MD</option><option>DE</option><option>NY</option><option>Other</option></select>
+        </div>
+        <div class="field"><label>County</label><input type="text" id="f-county" placeholder="e.g. Berks County"></div>
+        <div class="field"><label>Zip Code</label><input type="text" id="f-zip" placeholder="19601"></div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Site Details</div>
+      <div class="form-grid three">
+        <div class="field">
+          <label>Total Acreage</label>
+          <input type="number" step="0.01" id="f-acres" placeholder="e.g. 42.5" oninput="calcPPA()">
+        </div>
+        <div class="field">
+          <label>Asking Price ($)</label>
+          <input type="number" step="1000" id="f-price" placeholder="e.g. 3200000" oninput="calcPPA()">
+        </div>
+        <div class="field">
+          <label>Price / Acre (auto-calculated)</label>
+          <input type="text" id="f-ppa" placeholder="Fills automatically" readonly>
+          <span class="field-hint">Populates from acreage + price above</span>
+        </div>
+      </div>
+      <div class="form-grid" style="margin-top:16px">
+        <div class="field"><label>Current Zoning</label><input type="text" id="f-zoning" placeholder="e.g. I-2 Heavy Industrial"></div>
+        <div class="field"><label>Proposed / Target Use</label><input type="text" id="f-use" placeholder="e.g. 400k SF Distribution"></div>
+      </div>
+      <div class="form-grid" style="margin-top:16px">
+        <div class="field"><label>Submarket</label>
+          <select id="f-submarket">
+            <option value="">Select submarket</option>
+            <option>Central PA</option>
+            <option>Northeast PA</option>
+            <option>Lehigh Valley</option>
+            <option>Split 78/81</option>
+            <option>Southern 81</option>
+            <option>Southeast PA</option>
+            <option>PHL Metro</option>
+            <option>Southern NJ</option>
+            <option>I-95 Corridor MD</option>
+            <option>DE</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-grid three" style="margin-top:16px">
+        <div class="field"><label>Entitlement Status</label>
+          <select id="f-entitlement"><option value="">Unknown</option><option>By-right</option><option>Needs variance</option><option>Needs rezoning</option><option>In process</option><option>Approved</option></select>
+        </div>
+        <div class="field"><label>Deal Status *</label>
+          <select id="f-status" required><option value="">Select status</option><option value="prospecting">Prospecting</option><option value="active">Active</option><option value="offers-out">Offers Out</option><option value="submitted">Submitted</option><option value="under-loi">Under LOI</option><option value="under-contract">Under Contract</option><option value="closed">Closed</option><option value="dead">Dead</option></select>
+        </div>
+        <div class="field"><label>Date Added</label><input type="date" id="f-date"></div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Owner & Contact</div>
+      <div class="form-grid">
+        <div class="field"><label>Owner / Seller Name</label><input type="text" id="f-owner" placeholder="e.g. John Smith / ABC LLC"></div>
+        <div class="field"><label>Owner Contact / Phone</label><input type="text" id="f-owner-contact" placeholder="e.g. (215) 555-0100"></div>
+      </div>
+      <div class="form-grid" style="margin-top:16px">
+        <div class="field"><label>Target Buyer / Developer</label><input type="text" id="f-buyer" placeholder="e.g. Prologis, Dermody, etc."></div>
+        <div class="field"><label>Broker / Rep</label><input type="text" id="f-broker" placeholder="e.g. Off-market / KBC"></div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Location (for map view)</div>
+      <div class="form-grid">
+        <div class="field"><label>Latitude</label><input type="text" id="f-lat" placeholder="e.g. 40.2677"></div>
+        <div class="field"><label>Longitude</label><input type="text" id="f-lng" placeholder="e.g. -75.8419"></div>
+      </div>
+      <p style="font-size:12px;color:var(--text3);margin-top:8px;">Tip: Right-click any location in Google Maps → "What's here?" to get lat/long.</p>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Site Photo</div>
+      <div class="photo-drop" onclick="document.getElementById('f-photo').click()">
+        <input type="file" id="f-photo" accept="image/*" onchange="previewPhoto(this)" style="display:none">
+        <div class="photo-drop-icon">📷</div>
+        <p>Click to upload site photo or aerial</p>
+        <span>JPG, PNG, WebP</span>
+        <div class="photo-preview" id="photo-preview"><img id="photo-img" src="" alt=""></div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Notes & Due Diligence</div>
+      <div class="form-grid full">
+        <div class="field"><label>Notes</label><textarea id="f-notes" placeholder="Zoning flags, utility info, access issues, owner motivation, deal history, comps..."></textarea></div>
+      </div>
+    </div>
+
+    <div class="submit-row">
+      <button type="submit" class="btn-primary">Save Site to Pipeline →</button>
+      <button type="button" class="btn-secondary" onclick="clearForm()">Clear</button>
+      <div class="toast" id="toast">✓ Site saved!</div>
+    </div>
+  </form>
+</div>
+</div>
+
+<!-- ═══ DASHBOARD PAGE ═══ -->
+<div id="page-dashboard" class="page">
+
+  <div class="dash-header">
+    <h2>Site Pipeline</h2>
+    <div class="dash-header-right">
+      <div class="site-count" id="dash-count">0 sites</div>
+      <button class="btn-export" onclick="exportToExcel()">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 9.5V11h9V9.5M6.5 1v7M4 5.5l2.5 2.5L9 5.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Export to Excel
+      </button>
+      <div class="view-toggle">
+        <button class="view-btn active" id="btn-list" onclick="setView('list')">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="0" y="1" width="14" height="2" rx="1" fill="currentColor"/><rect x="0" y="6" width="14" height="2" rx="1" fill="currentColor"/><rect x="0" y="11" width="14" height="2" rx="1" fill="currentColor"/></svg>
+          List
+        </button>
+        <button class="view-btn" id="btn-map" onclick="setView('map')">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="6" r="4" stroke="currentColor" stroke-width="1.5"/><circle cx="7" cy="6" r="1.5" fill="currentColor"/><path d="M7 10v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Map
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- REMINDER BANNER -->
+  <div class="reminder-banner" id="reminder-banner">
+    <div class="reminder-banner-icon">🔔</div>
+    <div class="reminder-banner-body">
+      <div class="reminder-banner-title">Follow-up reminders due</div>
+      <div id="reminder-list"></div>
+    </div>
+    <button class="reminder-dismiss" onclick="dismissReminders()">Dismiss</button>
+  </div>
+
+  <!-- STATUS TABS -->
+  <div class="status-tabs">
+    <button class="status-tab active" data-tab="all" onclick="setTab(this)">All <span class="tab-count" id="tc-all">0</span></button>
+    <button class="status-tab" data-tab="top-pursuits" onclick="setTab(this)">Top Pursuits <span class="tab-count" id="tc-top">0</span></button>
+    <button class="status-tab" data-tab="prospecting" onclick="setTab(this)">Prospecting <span class="tab-count" id="tc-prospecting">0</span></button>
+    <button class="status-tab" data-tab="offers-out" onclick="setTab(this)">Offers Out <span class="tab-count" id="tc-offers-out">0</span></button>
+    <button class="status-tab" data-tab="submitted" onclick="setTab(this)">Submitted <span class="tab-count" id="tc-submitted">0</span></button>
+    <button class="status-tab" data-tab="under-loi" onclick="setTab(this)">Under LOI <span class="tab-count" id="tc-under-loi">0</span></button>
+    <button class="status-tab" data-tab="under-contract" onclick="setTab(this)">Under Contract <span class="tab-count" id="tc-under-contract">0</span></button>
+    <button class="status-tab" data-tab="closed" onclick="setTab(this)">Closed <span class="tab-count" id="tc-closed">0</span></button>
+    <button class="status-tab" data-tab="dead" onclick="setTab(this)">Dead <span class="tab-count" id="tc-dead">0</span></button>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="dash-filters">
+    <input class="search-input" id="search-input" placeholder="Search by name, address, county..." oninput="renderList()">
+    <select class="filter-select" id="filter-state" onchange="renderList()">
+      <option value="">All States</option>
+      <option>PA</option><option>NJ</option><option>MD</option><option>DE</option>
+    </select>
+    <select class="filter-select" id="filter-sort" onchange="renderList()">
+      <option value="newest">Newest first</option>
+      <option value="oldest">Oldest first</option>
+      <option value="name">Name A–Z</option>
+      <option value="price-high">Price high–low</option>
+      <option value="acres-high">Acreage high–low</option>
+    </select>
+  </div>
+
+  <div id="view-list"><div class="list-wrap"><div id="site-list-container"></div></div></div>
+  <div id="view-map" style="display:none">
+    <div class="map-wrap">
+      <div id="map-container"></div>
+      <div class="map-pins-overlay" id="map-pins-overlay" style="display:none">
+        <div class="map-pins-title">Sites on map</div>
+        <div id="map-pins-list"></div>
+      </div>
+          <div class="map-legend" id="map-legend" style="display:none">
+        <div class="map-legend-panel" id="map-legend-panel">
+          <div class="map-legend-title">Pin Legend</div>
+          <div class="map-legend-item"><div class="map-legend-dot" style="background:#f5b942"></div><div class="map-legend-label">Prospecting</div></div>
+          <div class="map-legend-item"><div class="map-legend-dot" style="background:#4ab8f0"></div><div class="map-legend-label">Active</div></div>
+          <div class="map-legend-item"><div class="map-legend-dot" style="background:#c084fc"></div><div class="map-legend-label">Offers Out</div></div>
+          <div class="map-legend-item"><div class="map-legend-dot" style="background:#fb923c"></div><div class="map-legend-label">Submitted</div></div>
+          <div class="map-legend-item"><div class="map-legend-dot" style="background:#f045b8"></div><div class="map-legend-label">Under LOI</div></div>
+          <div class="map-legend-item"><div class="map-legend-dot" style="background:#4af0c8"></div><div class="map-legend-label">Under Contract</div></div>
+          <div class="map-legend-item"><div class="map-legend-dot" style="background:#4af04a"></div><div class="map-legend-label">Closed</div></div>
+          <div class="map-legend-item"><div class="map-legend-dot" style="background:#ff5f5f"></div><div class="map-legend-label">Dead</div></div>
+        </div>
+        <button class="map-legend-toggle" onclick="toggleLegend()">🗺 Legend</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL ═══ -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-img" id="modal-img"></div>
+    <div class="modal-body">
+      <div class="modal-top">
+        <div>
+          <div id="modal-status" style="margin-bottom:8px"></div>
+          <div class="modal-name" id="modal-name"></div>
+          <div style="font-size:13px;color:var(--text2);margin-top:4px" id="modal-address"></div>
+        </div>
+        <button class="modal-close" onclick="document.getElementById('modal-overlay').classList.remove('open')">✕</button>
+      </div>
+      <div class="modal-grid" id="modal-grid"></div>
+      <div class="modal-notes" id="modal-notes-wrap" style="display:none">
+        <label>Notes</label>
+        <p id="modal-notes"></p>
+      </div>
+      <div id="modal-map-link-wrap"></div>
+
+      <!-- REMINDER SECTION -->
+      <div class="reminder-section" id="modal-reminder-section">
+        <div class="reminder-section-title">🔔 Follow-up Reminder</div>
+        <div class="reminder-row">
+          <input type="date" class="reminder-date-input" id="modal-reminder-date" placeholder="Remind me on...">
+          <select class="reminder-freq" id="modal-reminder-freq">
+            <option value="once">Once</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+          <button class="reminder-save" onclick="saveReminder()">Set Reminder</button>
+          <button class="reminder-clear" onclick="clearReminder()">Clear</button>
+        </div>
+        <div class="reminder-current" id="modal-reminder-current"></div>
+      </div>
+
+      <!-- CALL LOG SECTION -->
+      <div class="call-log-section">
+        <div class="call-log-title">📋 Activity Log</div>
+        <div class="call-log-input-row">
+          <input type="text" class="call-log-input" id="modal-log-input" placeholder="e.g. Called owner, left VM. Interested at $80k/ac...">
+          <button class="call-log-add" onclick="addLogEntry()">+ Log</button>
+        </div>
+        <div id="modal-log-entries"></div>
+      </div>
+
+      <!-- ATTACHMENTS SECTION -->
+      <div class="attachments-section">
+        <div class="attachments-title">📎 Files & Documents</div>
+        <div class="attachments-drop" onclick="document.getElementById('modal-file-input').click()">
+          <input type="file" id="modal-file-input" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.webp,.txt,.ppt,.pptx" style="display:none" onchange="handleAttachmentUpload(this)">
+          <div style="font-size:24px">📁</div>
+          <p>Click to attach files to this property</p>
+          <span>PDF, Word, Excel, Images, CSV — max 10MB per file</span>
+        </div>
+        <div class="attachments-list" id="modal-attachments-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let sites = [];
+let currentView = 'list';
+let currentTab = 'all';
+
+async function save() {
+  // no-op: individual saves handle Firebase writes
+}
+
+async function saveSite(site) {
+  if (window._fsSetDoc && window._fsDoc && window._sitesCol) {
+    try {
+      await window._fsSetDoc(window._fsDoc(window._sitesCol, String(site.id)), site);
+    } catch(e) { console.error('Firebase save error:', e); }
+  }
+}
+
+async function removeSite(id) {
+  if (window._fsDeleteDoc && window._fsDoc && window._sitesCol) {
+    try {
+      await window._fsDeleteDoc(window._fsDoc(window._sitesCol, String(id)));
+    } catch(e) { console.error('Firebase delete error:', e); }
+  }
+}
+
+window.updateCount = function updateCount() {
+  const dot = document.getElementById('sync-dot'); if(dot) dot.classList.add('live');
+  const n = sites.length;
+  document.getElementById('nav-count').textContent = n + ' site' + (n!==1?'s':'') + ' tracked';
+  document.getElementById('dash-count').textContent = n + ' site' + (n!==1?'s':'');
+  const counts = { all: n, top: 0, prospecting: 0, 'offers-out': 0, submitted: 0, 'under-loi': 0, 'under-contract': 0, closed: 0, dead: 0 };
+  sites.forEach(s => {
+    if (s.status === 'prospecting' || s.status === 'active') counts.top++;
+    if (counts[s.status] !== undefined) counts[s.status]++;
+  });
+  document.getElementById('tc-all').textContent = counts.all;
+  document.getElementById('tc-top').textContent = counts.top;
+  document.getElementById('tc-prospecting').textContent = counts.prospecting;
+  document.getElementById('tc-offers-out').textContent = counts['offers-out'];
+  document.getElementById('tc-submitted').textContent = counts.submitted;
+  document.getElementById('tc-under-loi').textContent = counts['under-loi'];
+  document.getElementById('tc-under-contract').textContent = counts['under-contract'];
+  document.getElementById('tc-closed').textContent = counts.closed;
+  document.getElementById('tc-dead').textContent = counts.dead;
+}
+
+function goTo(page, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  el.classList.add('active');
+  if (page === 'dashboard') { renderList(); if (currentView === 'map') renderMap(); }
+}
+
+function setTab(el) {
+  document.querySelectorAll('.status-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  currentTab = el.dataset.tab;
+  renderList();
+  if (currentView === 'map') renderMap();
+}
+
+// AUTO $/ACRE
+function calcPPA() {
+  const acres = parseFloat(document.getElementById('f-acres').value);
+  const price = parseFloat(document.getElementById('f-price').value);
+  const ppaEl = document.getElementById('f-ppa');
+  if (acres > 0 && price > 0) {
+    ppaEl.value = '$' + Math.round(price / acres).toLocaleString() + ' / ac';
+  } else {
+    ppaEl.value = '';
+  }
+}
+
+function previewPhoto(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('photo-img').src = e.target.result;
+    document.getElementById('photo-preview').style.display = 'block';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function clearForm() {
+  document.getElementById('site-form').reset();
+  document.getElementById('photo-preview').style.display = 'none';
+  document.getElementById('photo-img').src = '';
+  document.getElementById('f-ppa').value = '';
+  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+}
+
+async function submitSite(e) {
+  e.preventDefault();
+  const photoData = document.getElementById('photo-img').src || '';
+  const acres = parseFloat(document.getElementById('f-acres').value) || null;
+  const price = parseFloat(document.getElementById('f-price').value) || null;
+  const ppa = (acres && price) ? Math.round(price / acres) : null;
+  const site = {
+    id: Date.now(),
+    name: document.getElementById('f-name').value,
+    address: document.getElementById('f-address').value,
+    municipality: document.getElementById('f-municipality').value,
+    state: document.getElementById('f-state').value,
+    county: document.getElementById('f-county').value,
+    zip: document.getElementById('f-zip').value,
+    acres, price, ppa,
+    zoning: document.getElementById('f-zoning').value,
+    use: document.getElementById('f-use').value,
+    submarket: document.getElementById('f-submarket').value,
+    entitlement: document.getElementById('f-entitlement').value,
+    status: document.getElementById('f-status').value,
+    date: document.getElementById('f-date').value || new Date().toISOString().split('T')[0],
+    owner: document.getElementById('f-owner').value,
+    ownerContact: document.getElementById('f-owner-contact').value,
+    buyer: document.getElementById('f-buyer').value,
+    broker: document.getElementById('f-broker').value,
+    lat: document.getElementById('f-lat').value,
+    lng: document.getElementById('f-lng').value,
+    notes: document.getElementById('f-notes').value,
+    photo: photoData.startsWith('data:') ? photoData : ''
+  };
+  sites.unshift(site);
+  await saveSite(site);
+  clearForm();
+  const toast = document.getElementById('toast');
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+const statusLabels = { prospecting:'Prospecting', active:'Active', 'offers-out':'Offers Out', submitted:'Submitted', 'under-loi':'Under LOI', 'under-contract':'Under Contract', closed:'Closed', dead:'Dead' };
+function statusPill(s) { return `<span class="status-pill status-${s||'prospecting'}">${statusLabels[s]||s}</span>`; }
+const statusColors = { prospecting:'#f5b942', active:'#4ab8f0', 'offers-out':'#c084fc', submitted:'#fb923c', 'under-loi':'#f045b8', 'under-contract':'#4af0c8', closed:'#4af04a', dead:'#ff5f5f' };
+const fmt$ = v => v ? '$' + Number(v).toLocaleString() : '';
+const fmtAc = v => v ? Number(v).toLocaleString() + ' ac' : '';
+const fmtPPA = v => v ? '$' + Number(v).toLocaleString() + ' / ac' : '';
+
+function getFiltered() {
+  const q = (document.getElementById('search-input')||{}).value?.toLowerCase()||'';
+  const st = (document.getElementById('filter-state')||{}).value||'';
+  const sm = (document.getElementById('filter-submarket')||{}).value||'';
+  const sort = (document.getElementById('filter-sort')||{}).value||'newest';
+  let arr = [...sites];
+  if (currentTab === 'top-pursuits') arr = arr.filter(s => s.status === 'prospecting' || s.status === 'active');
+  else if (currentTab !== 'all') arr = arr.filter(s => s.status === currentTab);
+  if (q) arr = arr.filter(s => (s.name+s.address+s.county+s.municipality+s.state).toLowerCase().includes(q));
+  if (st) arr = arr.filter(s => s.state === st);
+  if (sm) arr = arr.filter(s => s.submarket === sm);
+  if (sort === 'name') arr.sort((a,b) => a.name.localeCompare(b.name));
+  else if (sort === 'oldest') arr.sort((a,b) => a.id - b.id);
+  else if (sort === 'price-high') arr.sort((a,b) => (b.price||0) - (a.price||0));
+  else if (sort === 'acres-high') arr.sort((a,b) => (b.acres||0) - (a.acres||0));
+  return arr;
+}
+
+window.renderList = function renderList() {
+  const arr = getFiltered();
+  const container = document.getElementById('site-list-container');
+  if (!arr.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🗺️</div><p>No sites in this view.<br><strong>Click "+ Add Site"</strong> to log a parcel.</p></div>`;
+    return;
+  }
+  container.innerHTML = `<div class="site-list">${arr.map(s => `
+    <div class="site-card" onclick="openModal(${s.id})">
+      <div class="site-card-img">${s.photo ? `<img src="${s.photo}" alt="${s.name}">` : '🏗️'}</div>
+      <div class="site-card-body">
+        <div class="site-card-top"><div class="site-name">${s.name}</div>${statusPill(s.status)}</div>
+        <div class="site-meta">
+          ${s.state ? `<div class="site-meta-item"><span>Location</span>${[s.municipality,s.county,s.state].filter(Boolean).join(', ')}</div>` : ''}
+          ${s.acres ? `<div class="site-meta-item"><span>Acreage</span>${fmtAc(s.acres)}</div>` : ''}
+          ${s.price ? `<div class="site-meta-item"><span>Ask Price</span>${fmt$(s.price)}</div>` : ''}
+          ${s.ppa ? `<div class="site-meta-item"><span>$/Acre</span>${fmtPPA(s.ppa)}</div>` : ''}
+          ${s.zoning ? `<div class="site-meta-item"><span>Zoning</span>${s.zoning}</div>` : ''}
+          ${s.submarket ? `<div class="site-meta-item"><span>Submarket</span>${s.submarket}</div>` : ''}
+          ${s.entitlement ? `<div class="site-meta-item"><span>Entitlement</span>${s.entitlement}</div>` : ''}
+          ${s.date ? `<div class="site-meta-item"><span>Added</span>${s.date}</div>` : ''}
+        </div>
+      </div>
+      <div class="site-card-actions">
+        <button class="icon-btn" onclick="event.stopPropagation();openModal(${s.id})">↗</button>
+        <button class="icon-btn delete" onclick="event.stopPropagation();deleteSite(${s.id})">✕</button>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+async function deleteSite(id) {
+  if (!confirm('Remove this site from your pipeline?')) return;
+  await removeSite(id);
+  renderList();
+  if (currentView === 'map') renderMap();
+}
+
+// EXCEL EXPORT (CSV with BOM — opens cleanly in Excel)
+function exportToExcel() {
+  const arr = getFiltered();
+  if (!arr.length) { alert('No sites to export in current view.'); return; }
+  const headers = ['Name','Address','Municipality','County','State','Zip','Acreage','Asking Price ($)','Price / Acre ($/ac)','Submarket','Zoning','Proposed Use','Entitlement','Status','Owner','Owner Contact','Target Buyer','Broker','Latitude','Longitude','Date Added','Notes'];
+  const rows = arr.map(s => [
+    s.name, s.address, s.municipality, s.county, s.state, s.zip,
+    s.acres||'', s.price||'', s.ppa||'',
+    s.submarket, s.zoning, s.use, s.entitlement, statusLabels[s.status]||s.status,
+    s.owner, s.ownerContact, s.buyer, s.broker,
+    s.lat, s.lng, s.date, s.notes
+  ]);
+  const esc = v => { const str = (v==null?'':String(v)).replace(/"/g,'""'); return /[,"\n\r]/.test(str)?`"${str}"`:str; };
+  const csv = '\uFEFF' + [headers,...rows].map(r => r.map(esc).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
+  const label = currentTab==='all'?'All Sites':currentTab.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+  a.download = `LandTracker - ${label} - ${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+}
+
+function openModal(id) {
+  const s = sites.find(x => x.id === id); if (!s) return;
+  document.getElementById('modal-img').innerHTML = s.photo
+    ? `<img src="${s.photo}" alt="${s.name}">`
+    : `<div style="font-size:48px;width:100%;height:220px;display:flex;align-items:center;justify-content:center;background:var(--surface2)">🏗️</div>`;
+  document.getElementById('modal-status').innerHTML = statusPill(s.status);
+  document.getElementById('modal-name').textContent = s.name;
+  document.getElementById('modal-address').textContent = [s.address,s.municipality,s.county,s.state,s.zip].filter(Boolean).join(', ');
+  const fields = [
+    ['Acreage',fmtAc(s.acres)],['Asking Price',fmt$(s.price)],['Price / Acre',fmtPPA(s.ppa)],
+    ['Submarket',s.submarket],['Zoning',s.zoning],['Proposed Use',s.use],['Entitlement',s.entitlement],
+    ['Owner',s.owner],['Owner Contact',s.ownerContact],
+    ['Target Buyer',s.buyer],['Broker',s.broker],
+    ['Lat / Long',s.lat&&s.lng?`${s.lat}, ${s.lng}`:''],['Date Added',s.date]
+  ].filter(f=>f[1]);
+  document.getElementById('modal-grid').innerHTML = fields.map(f=>`<div class="modal-field"><label>${f[0]}</label><p>${f[1]}</p></div>`).join('');
+  const nw = document.getElementById('modal-notes-wrap');
+  if (s.notes) { nw.style.display='block'; document.getElementById('modal-notes').textContent=s.notes; } else nw.style.display='none';
+  document.getElementById('modal-map-link-wrap').innerHTML = s.lat&&s.lng
+    ? `<a class="modal-map-link" href="https://www.google.com/maps/@${s.lat},${s.lng},300m/data=!3m1!1e3" target="_blank">🛰️ View aerial in Google Maps →</a>` : '';
+  currentModalId = id;
+  // Render log
+  renderLogEntries(s);
+  // Render reminder
+  const rd = document.getElementById('modal-reminder-date');
+  const rf = document.getElementById('modal-reminder-freq');
+  if (s.reminder) { rd.value = s.reminder.date; rf.value = s.reminder.freq; }
+  else { rd.value = ''; rf.value = 'once'; }
+  renderReminderCurrent(s);
+  document.getElementById('modal-log-input').value = '';
+  // Render attachments
+  renderAttachments(s);
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal(e) {
+  if (e.target === document.getElementById('modal-overlay')) document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('view-list').style.display = v==='list'?'block':'none';
+  document.getElementById('view-map').style.display = v==='map'?'block':'none';
+  document.getElementById('btn-list').classList.toggle('active', v==='list');
+  document.getElementById('btn-map').classList.toggle('active', v==='map');
+  if (v==='list') renderList();
+  if (v==='map') renderMap();
+}
+
+window.renderMap = function renderMap() {
+  const arr = getFiltered().filter(s => s.lat && s.lng);
+  const container = document.getElementById('map-container');
+  const overlay = document.getElementById('map-pins-overlay');
+  if (!arr.length) {
+    container.innerHTML = `<div class="map-placeholder"><p>No sites with coordinates in this view.<br>Add lat/long when logging a site to see them here.</p></div>`;
+    overlay.style.display = 'none';
+    document.getElementById('map-legend').style.display = 'none';
+    if (window._leafletMap) { window._leafletMap.remove(); window._leafletMap = null; }
+    return;
+  }
+
+  // Init Leaflet map
+  if (window._leafletMap) { window._leafletMap.remove(); window._leafletMap = null; }
+  container.innerHTML = '<div id="leaflet-map" style="width:100%;height:100%;"></div>';
+
+  const map = L.map('leaflet-map', { zoomControl: true });
+  window._leafletMap = map;
+
+  // Satellite tile layer (ESRI)
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles © Esri', maxZoom: 19
+  }).addTo(map);
+
+  // Labels overlay
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '', maxZoom: 19, opacity: 0.8
+  }).addTo(map);
+
+  const bounds = [];
+
+  arr.forEach(s => {
+    const color = statusColors[s.status] || '#c8f04a';
+    const markerHtml = `<div style="
+      width:14px;height:14px;border-radius:50%;
+      background:${color};
+      border:2.5px solid #fff;
+      box-shadow:0 0 0 2px ${color}55, 0 2px 6px rgba(0,0,0,0.5);
+    "></div>`;
+    const icon = L.divIcon({ html: markerHtml, className: '', iconSize: [14,14], iconAnchor: [7,7] });
+    const marker = L.marker([parseFloat(s.lat), parseFloat(s.lng)], { icon });
+
+    const popupContent = `
+      <div style="font-family:'DM Sans',sans-serif;min-width:200px;">
+        <div style="font-weight:600;font-size:14px;margin-bottom:4px;">${s.name}</div>
+        <div style="font-size:12px;color:#666;margin-bottom:8px;">${[s.municipality,s.county,s.state].filter(Boolean).join(', ')}</div>
+        ${s.acres ? `<div style="font-size:12px;margin-bottom:2px;"><b>Acres:</b> ${fmtAc(s.acres)}</div>` : ''}
+        ${s.price ? `<div style="font-size:12px;margin-bottom:2px;"><b>Price:</b> ${fmt$(s.price)}</div>` : ''}
+        ${s.ppa ? `<div style="font-size:12px;margin-bottom:2px;"><b>$/Acre:</b> ${fmtPPA(s.ppa)}</div>` : ''}
+        ${s.zoning ? `<div style="font-size:12px;margin-bottom:2px;"><b>Zoning:</b> ${s.zoning}</div>` : ''}
+        ${s.submarket ? `<div style="font-size:12px;margin-bottom:2px;"><b>Submarket:</b> ${s.submarket}</div>` : ''}
+        <div style="margin-top:10px;">
+          <span style="background:${color};color:#000;font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;">${statusLabels[s.status]||s.status}</span>
+        </div>
+        <div style="margin-top:10px;">
+          <a href="https://www.google.com/maps/@${s.lat},${s.lng},300m/data=!3m1!1e3" target="_blank" style="font-size:12px;color:#0066cc;">🛰️ View aerial →</a>
+        </div>
+      </div>`;
+
+    marker.bindPopup(popupContent, { maxWidth: 260 });
+    marker.on('click', () => marker.openPopup());
+    marker.addTo(map);
+    bounds.push([parseFloat(s.lat), parseFloat(s.lng)]);
+  });
+
+  if (bounds.length === 1) {
+    map.setView(bounds[0], 14);
+  } else {
+    map.fitBounds(bounds, { padding: [40, 40] });
+  }
+
+  document.getElementById('map-legend').style.display = 'block';
+  // Sidebar pins list
+  overlay.style.display = 'block';
+  document.getElementById('map-pins-list').innerHTML = arr.map(s => `
+    <div class="map-pin-item" onclick="window._leafletMap && window._leafletMap.setView([${s.lat},${s.lng}], 15)">
+      <div class="map-pin-dot" style="background:${statusColors[s.status]||'#c8f04a'}"></div>
+      <div><div class="map-pin-label">${s.name}</div><div class="map-pin-sub">${statusLabels[s.status]||s.status}</div></div>
+    </div>`).join('');
+}
+
+
+// ─── CURRENT MODAL SITE ID ───
+let currentModalId = null;
+
+// ─── CALL LOG ───
+async function addLogEntry() {
+  const input = document.getElementById('modal-log-input');
+  const text = input.value.trim();
+  if (!text || !currentModalId) return;
+  const s = sites.find(x => x.id === currentModalId);
+  if (!s) return;
+  if (!s.log) s.log = [];
+  s.log.unshift({ id: Date.now(), text, date: new Date().toLocaleString() });
+  await saveSite(s);
+  input.value = '';
+  renderLogEntries(s);
+}
+
+async function deleteLogEntry(siteId, entryId) {
+  const s = sites.find(x => x.id === siteId);
+  if (!s || !s.log) return;
+  s.log = s.log.filter(e => e.id !== entryId);
+  await saveSite(s);
+  renderLogEntries(s);
+}
+
+function renderLogEntries(s) {
+  const container = document.getElementById('modal-log-entries');
+  if (!s.log || !s.log.length) {
+    container.innerHTML = '<div class="call-log-empty">No activity logged yet.</div>';
+    return;
+  }
+  container.innerHTML = s.log.map(e => `
+    <div class="log-entry">
+      <div class="log-dot"></div>
+      <div class="log-body">
+        <div class="log-text">${e.text}</div>
+        <div class="log-meta">${e.date}</div>
+      </div>
+      <button class="log-delete" onclick="deleteLogEntry(${s.id}, ${e.id})">✕</button>
+    </div>`).join('');
+}
+
+// ─── REMINDERS ───
+async function saveReminder() {
+  const date = document.getElementById('modal-reminder-date').value;
+  const freq = document.getElementById('modal-reminder-freq').value;
+  if (!date || !currentModalId) return;
+  const s = sites.find(x => x.id === currentModalId);
+  if (!s) return;
+  s.reminder = { date, freq };
+  await saveSite(s);
+  renderReminderCurrent(s);
+  checkReminders();
+}
+
+async function clearReminder() {
+  if (!currentModalId) return;
+  const s = sites.find(x => x.id === currentModalId);
+  if (!s) return;
+  delete s.reminder;
+  await saveSite(s);
+  document.getElementById('modal-reminder-current').textContent = '';
+  document.getElementById('modal-reminder-date').value = '';
+  checkReminders();
+}
+
+function renderReminderCurrent(s) {
+  const el = document.getElementById('modal-reminder-current');
+  if (s.reminder) {
+    el.textContent = `Reminder set: ${s.reminder.date} · ${s.reminder.freq}`;
+  } else {
+    el.textContent = '';
+  }
+}
+
+window.checkReminders = function checkReminders() {
+  const today = new Date().toISOString().split('T')[0];
+  const due = sites.filter(s => {
+    if (!s.reminder) return false;
+    return s.reminder.date <= today;
+  });
+  const banner = document.getElementById('reminder-banner');
+  const list = document.getElementById('reminder-list');
+  if (!due.length) { banner.classList.remove('show'); return; }
+  banner.classList.add('show');
+  list.innerHTML = due.map(s => {
+    const overdue = s.reminder.date < today ? ` (overdue since ${s.reminder.date})` : ' (due today)';
+    return `<div class="reminder-item" onclick="openModal(${s.id})">${s.name}<span>${overdue}</span></div>`;
+  }).join('');
+}
+
+function toggleLegend() {
+  const panel = document.getElementById('map-legend-panel');
+  panel.classList.toggle('open');
+}
+
+async function dismissReminders() {
+  // Advance reminder dates based on frequency
+  const today = new Date().toISOString().split('T')[0];
+  sites.forEach(s => {
+    if (!s.reminder || s.reminder.date > today) return;
+    if (s.reminder.freq === 'weekly') {
+      const d = new Date(s.reminder.date); d.setDate(d.getDate() + 7);
+      s.reminder.date = d.toISOString().split('T')[0];
+    } else if (s.reminder.freq === 'monthly') {
+      const d = new Date(s.reminder.date); d.setMonth(d.getMonth() + 1);
+      s.reminder.date = d.toISOString().split('T')[0];
+    } else {
+      delete s.reminder; // once = clear after dismiss
+    }
+  });
+  await Promise.all(sites.map(s => saveSite(s)));
+  document.getElementById('reminder-banner').classList.remove('show');
+}
+
+// ─── ATTACHMENTS ───
+function getFileIcon(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  if (['pdf'].includes(ext)) return '📄';
+  if (['doc','docx'].includes(ext)) return '📝';
+  if (['xls','xlsx','csv'].includes(ext)) return '📊';
+  if (['png','jpg','jpeg','webp','gif'].includes(ext)) return '🖼️';
+  if (['ppt','pptx'].includes(ext)) return '📑';
+  return '📎';
+}
+
+function fmtFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1048576).toFixed(1) + ' MB';
+}
+
+async function handleAttachmentUpload(input) {
+  if (!input.files || !input.files.length || !currentModalId) return;
+  const s = sites.find(x => x.id === currentModalId);
+  if (!s) return;
+  if (!s.attachments) s.attachments = [];
+  const maxSize = 10 * 1024 * 1024;
+  for (const file of input.files) {
+    if (file.size > maxSize) { alert(`${file.name} exceeds 10MB limit and was skipped.`); continue; }
+    const data = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = e => res(e.target.result);
+      r.onerror = () => rej(new Error('Read failed'));
+      r.readAsDataURL(file);
+    });
+    s.attachments.push({ id: Date.now() + Math.random(), name: file.name, size: file.size, type: file.type, data });
+  }
+  await saveSite(s);
+  renderAttachments(s);
+  input.value = '';
+}
+
+function renderAttachments(s) {
+  const container = document.getElementById('modal-attachments-list');
+  if (!s.attachments || !s.attachments.length) { container.innerHTML = ''; return; }
+  container.innerHTML = s.attachments.map(a => `
+    <div class="attachment-item">
+      <div class="attachment-icon">${getFileIcon(a.name)}</div>
+      <div class="attachment-info">
+        <div class="attachment-name">${a.name}</div>
+        <div class="attachment-size">${fmtFileSize(a.size)}</div>
+      </div>
+      <div class="attachment-actions">
+        <button class="attachment-btn" onclick="downloadAttachment('${a.id}')">↓ Download</button>
+        <button class="attachment-btn del" onclick="deleteAttachment('${a.id}')">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function downloadAttachment(attachId) {
+  const s = sites.find(x => x.id === currentModalId);
+  if (!s || !s.attachments) return;
+  const a = s.attachments.find(x => String(x.id) === String(attachId));
+  if (!a) return;
+  const link = document.createElement('a');
+  link.href = a.data;
+  link.download = a.name;
+  link.click();
+}
+
+async function deleteAttachment(attachId) {
+  if (!confirm('Remove this file?')) return;
+  const s = sites.find(x => x.id === currentModalId);
+  if (!s || !s.attachments) return;
+  s.attachments = s.attachments.filter(x => String(x.id) !== String(attachId));
+  await saveSite(s);
+  renderAttachments(s);
+}
+
+document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+// Data loads via Firebase onSnapshot listener above
+
+// ─── PWA INSTALL ───
+let _deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  _deferredPrompt = e;
+  if (!localStorage.getItem('pwa-dismissed')) {
+    document.getElementById('install-banner').classList.add('show');
+  }
+});
+
+document.getElementById('btn-install-pwa').addEventListener('click', async () => {
+  if (!_deferredPrompt) {
+    // iOS fallback instructions
+    alert('To install on iPhone/iPad:\n1. Tap the Share button (box with arrow) in Safari\n2. Tap "Add to Home Screen"\n3. Tap "Add"');
+    return;
+  }
+  _deferredPrompt.prompt();
+  const { outcome } = await _deferredPrompt.userChoice;
+  _deferredPrompt = null;
+  document.getElementById('install-banner').classList.remove('show');
+});
+
+function dismissInstall() {
+  document.getElementById('install-banner').classList.remove('show');
+  localStorage.setItem('pwa-dismissed', '1');
+}
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('install-banner').classList.remove('show');
+  _deferredPrompt = null;
+});
+
+</script>
+</body>
+</html>
