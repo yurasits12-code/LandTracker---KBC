@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -231,6 +232,11 @@ nav {
   padding: 6px 12px; outline: none; cursor: pointer; -webkit-appearance: none;
 }
 .filter-select:focus { border-color: var(--accent); }
+.filter-select.active-filter {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: #1a2600;
+}
 .search-input {
   background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
   color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px;
@@ -238,6 +244,14 @@ nav {
 }
 .search-input:focus { border-color: var(--accent); }
 .search-input::placeholder { color: var(--text3); }
+.filter-clear {
+  background: transparent; border: 1px solid var(--border2); border-radius: 8px;
+  color: var(--text3); font-family: 'DM Mono', monospace; font-size: 11px;
+  padding: 6px 12px; cursor: pointer; transition: all .15s; white-space: nowrap;
+  display: none;
+}
+.filter-clear:hover { border-color: var(--red); color: var(--red); }
+.filter-clear.show { display: block; }
 
 /* ─── LIST ─── */
 .list-wrap { padding: 24px 32px; }
@@ -737,12 +751,25 @@ document.addEventListener('DOMContentLoaded', () => {
     <button class="status-tab" data-tab="dead" onclick="setTab(this)">Dead <span class="tab-count" id="tc-dead">0</span></button>
   </div>
 
-  <!-- FILTERS -->
+  <!-- FILTERS — submarket dropdown added here -->
   <div class="dash-filters">
-    <input class="search-input" id="search-input" placeholder="Search by name, address, county..." oninput="renderList()">
-    <select class="filter-select" id="filter-state" onchange="renderList()">
+    <input class="search-input" id="search-input" placeholder="Search by name, address, county..." oninput="renderList(); updateFilterClear()">
+    <select class="filter-select" id="filter-state" onchange="renderList(); updateFilterClear()">
       <option value="">All States</option>
       <option>PA</option><option>NJ</option><option>MD</option><option>DE</option>
+    </select>
+    <select class="filter-select" id="filter-submarket" onchange="renderList(); updateFilterClear()">
+      <option value="">All Submarkets</option>
+      <option>Central PA</option>
+      <option>Northeast PA</option>
+      <option>Lehigh Valley</option>
+      <option>Split 78/81</option>
+      <option>Southern 81</option>
+      <option>Southeast PA</option>
+      <option>PHL Metro</option>
+      <option>Southern NJ</option>
+      <option>I-95 Corridor MD</option>
+      <option>DE</option>
     </select>
     <select class="filter-select" id="filter-sort" onchange="renderList()">
       <option value="newest">Newest first</option>
@@ -751,6 +778,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <option value="price-high">Price high–low</option>
       <option value="acres-high">Acreage high–low</option>
     </select>
+    <button class="filter-clear" id="filter-clear-btn" onclick="clearFilters()">✕ Clear filters</button>
   </div>
 
   <div id="view-list"><div class="list-wrap"><div id="site-list-container"></div></div></div>
@@ -902,6 +930,34 @@ function setTab(el) {
   if (currentView === 'map') renderMap();
 }
 
+// ─── FILTER HELPERS ───
+function updateFilterClear() {
+  const q = document.getElementById('search-input').value;
+  const st = document.getElementById('filter-state').value;
+  const sm = document.getElementById('filter-submarket').value;
+  const clearBtn = document.getElementById('filter-clear-btn');
+  const smSelect = document.getElementById('filter-submarket');
+  const stSelect = document.getElementById('filter-state');
+
+  // Highlight active submarket filter
+  smSelect.classList.toggle('active-filter', !!sm);
+  stSelect.classList.toggle('active-filter', !!st);
+
+  // Show clear button if any filter is active
+  clearBtn.classList.toggle('show', !!(q || st || sm));
+}
+
+function clearFilters() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('filter-state').value = '';
+  document.getElementById('filter-submarket').value = '';
+  document.getElementById('filter-submarket').classList.remove('active-filter');
+  document.getElementById('filter-state').classList.remove('active-filter');
+  document.getElementById('filter-clear-btn').classList.remove('show');
+  renderList();
+  if (currentView === 'map') renderMap();
+}
+
 // AUTO $/ACRE
 function calcPPA() {
   const acres = parseFloat(document.getElementById('f-acres').value);
@@ -997,9 +1053,11 @@ function getFiltered() {
 
 window.renderList = function renderList() {
   const arr = getFiltered();
+  const sm = (document.getElementById('filter-submarket')||{}).value||'';
   const container = document.getElementById('site-list-container');
   if (!arr.length) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🗺️</div><p>No sites in this view.<br><strong>Click "+ Add Site"</strong> to log a parcel.</p></div>`;
+    const smMsg = sm ? ` in <strong>${sm}</strong>` : '';
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🗺️</div><p>No sites${smMsg} in this view.<br><strong>Click "+ Add Site"</strong> to log a parcel.</p></div>`;
     return;
   }
   container.innerHTML = `<div class="site-list">${arr.map(s => `
@@ -1048,7 +1106,8 @@ function exportToExcel() {
   const csv = '\uFEFF' + [headers,...rows].map(r => r.map(esc).join(',')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
-  const label = currentTab==='all'?'All Sites':currentTab.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+  const smFilter = (document.getElementById('filter-submarket')||{}).value||'';
+  const label = smFilter ? smFilter : (currentTab==='all'?'All Sites':currentTab.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()));
   a.download = `LandTracker - ${label} - ${new Date().toISOString().split('T')[0]}.csv`;
   a.click();
 }
