@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -489,21 +488,19 @@ nav {
   window._fsDeleteDoc = deleteDoc;
 
   // Real-time listener — syncs all devices live
+  window._appReady = false;
   onSnapshot(sitesCol, (snapshot) => {
     window.sites = [];
     snapshot.forEach(d => window.sites.push(d.data()));
     window.sites.sort((a,b) => b.id - a.id);
-    if (window._appReady) {
-      window.updateCount();
-      window.renderList();
-      window.checkReminders();
-      if (window.currentView === 'map') window.renderMap();
-    }
+    window._appReady = true;
+    window.updateCount();
+    window.renderList();
+    window.checkReminders();
+    if (window.currentView === 'map') window.renderMap();
+  }, (error) => {
+    console.error('Firestore snapshot error:', error);
   });
-
-  window._appReady = false;
-  // Small delay to let snapshot fire before marking ready
-  setTimeout(() => { window._appReady = true; }, 1200);
 </script>
 </head>
 <body>
