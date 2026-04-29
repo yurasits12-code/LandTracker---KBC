@@ -463,43 +463,20 @@ nav {
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
-  const firebaseConfig = {
+  firebase.initializeApp({
     apiKey: "AIzaSyD1w3Jj69wYQjEJKJ8u-TVbTQbnJTCnpGo",
     authDomain: "landtracker-kbc-92378.firebaseapp.com",
     projectId: "landtracker-kbc-92378",
     storageBucket: "landtracker-kbc-92378.firebasestorage.app",
     messagingSenderId: "564389466378",
     appId: "1:564389466378:web:c7cb6861c85818e3e7eaf3"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
-  const sitesCol = db.collection('sites');
-
-  window._sitesCol = sitesCol;
-  window._fsSetDoc = (ref, data) => ref.set(data);
-  window._fsDoc = (col, id) => col.doc(id);
-  window._fsDeleteDoc = (ref) => ref.delete();
-
-  window.sites = [];
-
-  // Listen for data - runs in same scope as everything else
-  document.addEventListener('DOMContentLoaded', function() {
-    sitesCol.onSnapshot(function(snapshot) {
-      window.sites = [];
-      snapshot.forEach(function(d) { window.sites.push(d.data()); });
-      window.sites.sort(function(a,b) { return b.id - a.id; });
-      if (typeof updateCount === 'function') updateCount();
-      if (typeof renderList === 'function') renderList();
-      if (typeof checkReminders === 'function') checkReminders();
-    }, function(error) {
-      console.error('Firestore error:', error);
-    });
   });
-</script>
-</head>
+  window.sitesCol = firebase.firestore().collection('sites');
+  window.sites = [];
+</script></head>
 <body>
 
 <!-- PASSWORD GATE -->
@@ -873,13 +850,13 @@ async function save() {
 
 async function saveSite(site) {
   try {
-    await sitesCol.doc(String(site.id)).set(site);
+    await window.sitesCol.doc(String(site.id)).set(site);
   } catch(e) { console.error('Firebase save error:', e); }
 }
 
 async function removeSite(id) {
   try {
-    await sitesCol.doc(String(id)).delete();
+    await window.sitesCol.doc(String(id)).delete();
   } catch(e) { console.error('Firebase delete error:', e); }
 }
 
@@ -1423,7 +1400,19 @@ async function deleteAttachment(attachId) {
 }
 
 document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
-// Data loads via Firebase onSnapshot listener above
+
+// Start Firebase listener - all functions are now defined so this is safe
+window.sitesCol.onSnapshot(function(snapshot) {
+  window.sites = [];
+  snapshot.forEach(function(d) { window.sites.push(d.data()); });
+  window.sites.sort(function(a,b) { return b.id - a.id; });
+  updateCount();
+  renderList();
+  checkReminders();
+  if (currentView === 'map') renderMap();
+}, function(error) {
+  console.error('Firestore error:', error);
+});
 
 // ─── PWA INSTALL ───
 let _deferredPrompt = null;
