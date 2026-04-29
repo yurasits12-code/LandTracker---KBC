@@ -463,10 +463,9 @@ nav {
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
   const firebaseConfig = {
     apiKey: "AIzaSyD1w3Jj69wYQjEJKJ8u-TVbTQbnJTCnpGo",
     authDomain: "landtracker-kbc-92378.firebaseapp.com",
@@ -475,40 +474,29 @@ nav {
     messagingSenderId: "564389466378",
     appId: "1:564389466378:web:c7cb6861c85818e3e7eaf3"
   };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const sitesCol = db.collection('sites');
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const sitesCol = collection(db, 'sites');
-
-  // Expose db functions to global scope
-  window._db = db;
   window._sitesCol = sitesCol;
-  window._fsSetDoc = setDoc;
-  window._fsDoc = doc;
-  window._fsDeleteDoc = deleteDoc;
+  window._fsSetDoc = (ref, data) => ref.set(data);
+  window._fsDoc = (col, id) => col.doc(id);
+  window._fsDeleteDoc = (ref) => ref.delete();
 
-  // Real-time listener - syncs all devices live
-  window._appReady = false;
+  window.sites = [];
 
-  function tryRender() {
-    if (typeof window.renderList === 'function') {
-      window.updateCount && window.updateCount();
-      window.renderList();
-      window.checkReminders && window.checkReminders();
-      if (window.currentView === 'map' && window.renderMap) window.renderMap();
-    } else {
-      setTimeout(tryRender, 100);
-    }
-  }
-
-  onSnapshot(sitesCol, (snapshot) => {
-    window.sites = [];
-    snapshot.forEach(d => window.sites.push(d.data()));
-    window.sites.sort((a,b) => b.id - a.id);
-    window._appReady = true;
-    tryRender();
-  }, (error) => {
-    console.error('Firestore snapshot error:', error);
+  // Listen for data - runs in same scope as everything else
+  document.addEventListener('DOMContentLoaded', function() {
+    sitesCol.onSnapshot(function(snapshot) {
+      window.sites = [];
+      snapshot.forEach(function(d) { window.sites.push(d.data()); });
+      window.sites.sort(function(a,b) { return b.id - a.id; });
+      if (typeof updateCount === 'function') updateCount();
+      if (typeof renderList === 'function') renderList();
+      if (typeof checkReminders === 'function') checkReminders();
+    }, function(error) {
+      console.error('Firestore error:', error);
+    });
   });
 </script>
 </head>
@@ -884,19 +872,15 @@ async function save() {
 }
 
 async function saveSite(site) {
-  if (window._fsSetDoc && window._fsDoc && window._sitesCol) {
-    try {
-      await window._fsSetDoc(window._fsDoc(window._sitesCol, String(site.id)), site);
-    } catch(e) { console.error('Firebase save error:', e); }
-  }
+  try {
+    await sitesCol.doc(String(site.id)).set(site);
+  } catch(e) { console.error('Firebase save error:', e); }
 }
 
 async function removeSite(id) {
-  if (window._fsDeleteDoc && window._fsDoc && window._sitesCol) {
-    try {
-      await window._fsDeleteDoc(window._fsDoc(window._sitesCol, String(id)));
-    } catch(e) { console.error('Firebase delete error:', e); }
-  }
+  try {
+    await sitesCol.doc(String(id)).delete();
+  } catch(e) { console.error('Firebase delete error:', e); }
 }
 
 window.updateCount = function updateCount() {
