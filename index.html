@@ -30,7 +30,7 @@ const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
 document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Land Tracker — Industrial Site Pipeline v2</title>
+<title>Land Tracker — Industrial Site Pipeline</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -487,17 +487,26 @@ nav {
   window._fsDoc = doc;
   window._fsDeleteDoc = deleteDoc;
 
-  // Real-time listener — syncs all devices live
+  // Real-time listener - syncs all devices live
   window._appReady = false;
+
+  function tryRender() {
+    if (typeof window.renderList === 'function') {
+      window.updateCount && window.updateCount();
+      window.renderList();
+      window.checkReminders && window.checkReminders();
+      if (window.currentView === 'map' && window.renderMap) window.renderMap();
+    } else {
+      setTimeout(tryRender, 100);
+    }
+  }
+
   onSnapshot(sitesCol, (snapshot) => {
     window.sites = [];
     snapshot.forEach(d => window.sites.push(d.data()));
     window.sites.sort((a,b) => b.id - a.id);
     window._appReady = true;
-    window.updateCount();
-    window.renderList();
-    window.checkReminders();
-    if (window.currentView === 'map') window.renderMap();
+    tryRender();
   }, (error) => {
     console.error('Firestore snapshot error:', error);
   });
@@ -1048,7 +1057,7 @@ function getFiltered() {
   return arr;
 }
 
-window.renderList = function renderList() {
+function renderList() {
   const arr = getFiltered();
   const sm = (document.getElementById('filter-submarket')||{}).value||'';
   const container = document.getElementById('site-list-container');
