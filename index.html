@@ -1057,7 +1057,7 @@ function getFiltered() {
   return arr;
 }
 
-function renderList() {
+window.renderList = function renderList() {
   const arr = getFiltered();
   const sm = (document.getElementById('filter-submarket')||{}).value||'';
   const container = document.getElementById('site-list-container');
